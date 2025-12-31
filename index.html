@@ -360,8 +360,6 @@
 
         ctx.save();
         ctx.translate(ox + 20, oy + 20);
-        // Angle is applied globally, but for this "forward" look, 
-        // we ensure the sprite design itself looks forward when angle is 0.
         ctx.rotate(en.angle || 0);
         ctx.translate(-20, -20);
 
@@ -383,7 +381,7 @@
         ctx.fillStyle = detailColor;
         ctx.fillRect(14, 14, 12, 12);
         
-        // Barrel (pointing DOWN in sprite space)
+        // Barrel
         ctx.fillStyle = treadColor;
         ctx.fillRect(18, 26, 4, 14);
         
@@ -553,14 +551,15 @@
             drawBoss(boss);
         }
 
-        if (!boss && !player.destroyed && frame % 55 === 0) {
+        if (!boss && !player.destroyed && frame % 45 === 0) {
             const isTank = Math.random() > 0.4;
             enemies.push({ 
                 x: Math.random() * (canvas.width - 40), 
                 y: -50, 
                 w: 40, 
                 h: 40, 
-                speed: isTank ? 1.5 : 2.8, 
+                // TANK speed matches landscape speed to appear static
+                speed: isTank ? 2 : 3.5, 
                 type: isTank ? 'TANK' : 'HELI',
                 angle: 0
             });
@@ -594,19 +593,7 @@
         });
 
         enemies.forEach((en, i) => {
-            if (en.type === 'TANK' && !player.destroyed) {
-                // Moving forward (top to bottom)
-                en.y += en.speed;
-                // Lateral homing
-                const targetX = player.x + player.w / 2 - en.w / 2;
-                if (en.x < targetX) en.x += 0.5;
-                else if (en.x > targetX) en.x -= 0.5;
-                
-                // Keep angle at 0 for "forward" orientation
-                en.angle = 0;
-            } else {
-                en.y += en.speed;
-            }
+            en.y += en.speed;
 
             if (en.type === 'HELI') drawEliteHeli(en.x, en.y, '#c0392b', false, false, Math.PI); 
             else drawDetailedTank(en);
@@ -628,7 +615,7 @@
                     }
                 }
             });
-            if(en.y > canvas.height + 100 || en.y < -200) enemies.splice(i, 1);
+            if(en.y > canvas.height + 100) enemies.splice(i, 1);
         });
 
         particles.forEach((p, i) => {
