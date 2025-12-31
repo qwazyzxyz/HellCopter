@@ -192,9 +192,9 @@
         rotation: 0,
         rockets: [],
         lastShot: 0,
-        shotDelay: 12,
+        shotDelay: 10,
         lastAltShot: 0,
-        altShotDelay: 80,
+        altShotDelay: 70,
         destroyed: false
     };
 
@@ -298,8 +298,8 @@
         const colors = ['#2e86c1', '#3498db', '#ecf0f1', '#e74c3c', '#f1c40f', '#000'];
         for (let i = 0; i < count; i++) {
             particles.push({
-                x: x + (Math.random() - 0.5) * 60,
-                y: y + (Math.random() - 0.5) * 60,
+                x: x,
+                y: y,
                 vx: (Math.random() - 0.5) * 18,
                 vy: (Math.random() - 0.5) * 18,
                 life: 40 + Math.random() * 40,
@@ -315,19 +315,32 @@
         const ox = Math.round(x / PIXEL_SIZE) * PIXEL_SIZE;
         const oy = Math.round(y / PIXEL_SIZE) * PIXEL_SIZE;
         const main = isShadow ? SHADOW_COLOR : color;
+        const dark = isShadow ? SHADOW_COLOR : '#1a5276';
         const glass = isShadow ? SHADOW_COLOR : '#dff9fb';
+        
         ctx.save();
         ctx.translate(ox + (20 * scale), oy + (26 * scale));
         ctx.rotate(tiltAngle);
         ctx.scale(scale, scale);
         ctx.translate(-(ox + 20), -(oy + 26));
+        
+        // Tail
         ctx.fillStyle = main;
         ctx.fillRect(ox + 16, oy + 36, 8, 12);
+        ctx.fillStyle = dark;
         ctx.fillRect(ox + 12, oy + 48, 16, 4);
+        
+        // Body
+        ctx.fillStyle = main;
         ctx.fillRect(ox + 8, oy + 12, 24, 20);
+        ctx.fillStyle = dark;
         ctx.fillRect(ox + 12, oy + 4, 16, 8);
+        
+        // Windows
         ctx.fillStyle = glass;
         ctx.fillRect(ox + 16, oy + 8, 8, 8);
+        
+        // Rotor
         ctx.save();
         ctx.translate(ox + 20, oy + 20);
         ctx.rotate(frame * 0.4);
@@ -338,19 +351,43 @@
         ctx.restore();
     }
 
-    function drawTank(x, y, isShadow = false) {
-        const ox = Math.round(x / PIXEL_SIZE) * PIXEL_SIZE;
-        const oy = Math.round(y / PIXEL_SIZE) * PIXEL_SIZE;
-        const body = isShadow ? SHADOW_COLOR : '#3d4a35';
-        const dark = isShadow ? SHADOW_COLOR : '#1e261a';
-        ctx.fillStyle = dark;
-        ctx.fillRect(ox, oy + 4, 8, 32);
-        ctx.fillRect(ox + 32, oy + 4, 8, 32);
-        ctx.fillStyle = body;
-        ctx.fillRect(ox + 6, oy + 6, 28, 28);
-        ctx.fillStyle = dark;
-        ctx.fillRect(ox + 12, oy + 12, 16, 16);
-        ctx.fillRect(ox + 18, oy + 24, 4, 16);
+    function drawDetailedTank(en, isShadow = false) {
+        const ox = Math.round(en.x / PIXEL_SIZE) * PIXEL_SIZE;
+        const oy = Math.round(en.y / PIXEL_SIZE) * PIXEL_SIZE;
+        const color = isShadow ? SHADOW_COLOR : '#4b5320';
+        const treadColor = isShadow ? SHADOW_COLOR : '#2a2e12';
+        const detailColor = isShadow ? SHADOW_COLOR : '#5c633a';
+
+        ctx.save();
+        ctx.translate(ox + 20, oy + 20);
+        // Angle is applied globally, but for this "forward" look, 
+        // we ensure the sprite design itself looks forward when angle is 0.
+        ctx.rotate(en.angle || 0);
+        ctx.translate(-20, -20);
+
+        // Treads
+        ctx.fillStyle = treadColor;
+        ctx.fillRect(0, 4, 8, 32);
+        ctx.fillRect(32, 4, 8, 32);
+        
+        // Hull
+        ctx.fillStyle = color;
+        ctx.fillRect(6, 6, 28, 28);
+        ctx.fillStyle = detailColor;
+        ctx.fillRect(8, 8, 24, 2);
+        ctx.fillRect(8, 30, 24, 2);
+        
+        // Turret
+        ctx.fillStyle = treadColor;
+        ctx.fillRect(12, 12, 16, 16);
+        ctx.fillStyle = detailColor;
+        ctx.fillRect(14, 14, 12, 12);
+        
+        // Barrel (pointing DOWN in sprite space)
+        ctx.fillStyle = treadColor;
+        ctx.fillRect(18, 26, 4, 14);
+        
+        ctx.restore();
     }
 
     function drawBoss(b) {
@@ -396,7 +433,6 @@
         overFrameId = requestAnimationFrame(flagLoop);
         overCtx.clearRect(0, 0, overCanvas.width, overCanvas.height);
         
-        // Lower flag progress limit for "Traur" (half-mast) state
         if (flagProgress < 0.6) flagProgress += 0.008;
         
         const time = Date.now() * 0.006;
@@ -406,13 +442,11 @@
         const flagWidth = 85;
         const flagHeight = 48;
         
-        // Render Pole (Always full height)
         overCtx.fillStyle = '#555';
         overCtx.fillRect(poleX - 2, poleY - poleHeight, 4, poleHeight);
         overCtx.fillStyle = '#f1c40f';
         overCtx.fillRect(poleX - 4, poleY - poleHeight, 8, 4);
         
-        // Flag rises only to a certain point (Half-Mast)
         if (flagProgress > 0.1) {
             const currentPoleTop = poleY - (poleHeight * flagProgress);
             const unfurl = Math.min(1, (flagProgress - 0.1) * 2.5);
@@ -424,14 +458,12 @@
                 const x = poleX + 2 + (i * segmentWidth);
                 const waveIntensity = i / segmentCount;
                 const waveMain = Math.sin(time * 3 - i * 0.4) * 8 * waveIntensity;
-                const waveFlick = Math.cos(time * 7 - i * 0.9) * 4 * waveIntensity;
-                const yOffset = waveMain + waveFlick;
+                const yOffset = waveMain;
                 const xOffset = Math.sin(time * 4 + i * 0.6) * 3 * waveIntensity;
 
                 const isCanton = (i < segmentCount * 0.4) && unfurl > 0.1;
                 const stripeHeight = flagHeight / 13;
                 
-                // Draw Base Stripes
                 for (let s = 0; s < 13; s++) {
                     overCtx.fillStyle = (s % 2 === 0) ? '#B22234' : '#FFFFFF';
                     if (!(isCanton && s < 7)) {
@@ -439,18 +471,15 @@
                     }
                 }
 
-                // Draw Blue Canton
                 if (isCanton) {
                     overCtx.fillStyle = '#3C3B6E';
                     overCtx.fillRect(x + xOffset, startY + yOffset, segmentWidth + 1, stripeHeight * 7);
-                    // Star pixels
                     if (Math.floor(time * 2) % 2 === 0) {
                         overCtx.fillStyle = '#FFFFFF';
                         if (i % 4 === 0) overCtx.fillRect(x + xOffset + 2, startY + yOffset + 4, 2, 2);
                     }
                 }
 
-                // Creases/Shadows
                 const slope = Math.cos(time * 3 - i * 0.4);
                 overCtx.fillStyle = `rgba(0,0,0,${Math.max(0, slope * 0.3)})`;
                 overCtx.fillRect(x + xOffset, startY + yOffset, segmentWidth + 1, flagHeight);
@@ -462,12 +491,10 @@
         if(!gameActive) return;
         frame++;
 
-        // Mission Progression
         if (missionTime < MISSION_DURATION && !boss) missionTime++;
         const progress = Math.min(100, (missionTime / MISSION_DURATION) * 100);
         progressBar.style.height = progress + "%";
 
-        // Background
         ctx.fillStyle = '#0f291b'; ctx.fillRect(0,0,canvas.width, canvas.height);
         landscape.forEach((item, i) => {
             item.y += item.speed;
@@ -480,14 +507,12 @@
             if(item.y > canvas.height + 400) { landscape.splice(i, 1); spawnLandscape(); }
         });
 
-        // Speed Lines
         ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
         speedLines.forEach(line => {
             line.y += 15; ctx.beginPath(); ctx.moveTo(line.x, line.y); ctx.lineTo(line.x, line.y + line.len); ctx.stroke();
             if (line.y > canvas.height) line.y = -50;
         });
 
-        // Player Controls
         if (!player.destroyed) {
             let targetRotation = 0;
             if (keys['ArrowLeft']) { player.x -= player.speed; targetRotation = -0.25; }
@@ -510,32 +535,37 @@
             }
         }
 
-        // Boss Logic
         if (missionTime >= MISSION_DURATION && !boss) {
-            boss = { x: canvas.width / 2 - 80, y: -250, w: 160, h: 100, hp: 7000, maxHp: 7000, speed: 1.2, lastFire: 0, targetX: canvas.width / 2 - 80 };
+            boss = { x: canvas.width / 2 - 80, y: -250, w: 160, h: 100, hp: 8000, maxHp: 8000, speed: 1.2, lastFire: 0, targetX: canvas.width / 2 - 80 };
         }
         if (boss) {
             if (boss.y < 80) boss.y += boss.speed;
             else {
                 if (frame % 80 === 0) boss.targetX = Math.random() * (canvas.width - boss.w);
                 boss.x += (boss.targetX - boss.x) * 0.02;
-                if (frame - boss.lastFire > 40) {
-                    enemyRockets.push({x: boss.x + 10, y: boss.y + 70, vy: 5, vx: -0.8});
-                    enemyRockets.push({x: boss.x + 150, y: boss.y + 70, vy: 5, vx: 0.8});
-                    enemyRockets.push({x: boss.x + 80, y: boss.y + 90, vy: 6.5, vx: 0});
+                if (frame - boss.lastFire > 35) {
+                    enemyRockets.push({x: boss.x + 10, y: boss.y + 70, vy: 5, vx: -1});
+                    enemyRockets.push({x: boss.x + 150, y: boss.y + 70, vy: 5, vx: 1});
+                    enemyRockets.push({x: boss.x + 80, y: boss.y + 90, vy: 7, vx: 0});
                     boss.lastFire = frame;
                 }
             }
             drawBoss(boss);
         }
 
-        // Enemy Spawning
-        if (!boss && !player.destroyed && frame % 60 === 0) {
+        if (!boss && !player.destroyed && frame % 55 === 0) {
             const isTank = Math.random() > 0.4;
-            enemies.push({ x: Math.random() * (canvas.width - 40), y: -50, w: 40, h: 40, speed: isTank ? 1.5 : 2.8, type: isTank ? 'TANK' : 'HELI' });
+            enemies.push({ 
+                x: Math.random() * (canvas.width - 40), 
+                y: -50, 
+                w: 40, 
+                h: 40, 
+                speed: isTank ? 1.5 : 2.8, 
+                type: isTank ? 'TANK' : 'HELI',
+                angle: 0
+            });
         }
 
-        // Projectiles
         player.rockets.forEach((r, i) => {
             r.y += r.vy;
             if (r.type === 'heavy') {
@@ -545,10 +575,10 @@
             } else { ctx.fillStyle = '#ff9f43'; ctx.fillRect(r.x, r.y, 4, 12); }
             if(r.y < -100) { player.rockets.splice(i, 1); return; }
             if (boss && r.x > boss.x && r.x < boss.x + boss.w && r.y < boss.y + boss.h && r.y > boss.y) {
-                boss.hp -= (r.type === 'heavy' ? 400 : 30);
+                boss.hp -= (r.type === 'heavy' ? 450 : 35);
                 particles.push({x: r.x, y: r.y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, life: 15, color: '#fff'});
                 player.rockets.splice(i, 1);
-                if (boss.hp <= 0) { createPixelCollapse(boss.x + boss.w/2, boss.y + boss.h/2, 500); score += 15000; boss = null; missionTime = 0; }
+                if (boss.hp <= 0) { createPixelCollapse(boss.x + boss.w/2, boss.y + boss.h/2, 500); score += 20000; boss = null; missionTime = 0; }
                 return;
             }
         });
@@ -563,31 +593,44 @@
             if(r.y > canvas.height) enemyRockets.splice(i, 1);
         });
 
-        // Enemies
         enemies.forEach((en, i) => {
-            en.y += en.speed;
-            if (en.type === 'HELI') drawEliteHeli(en.x, en.y, '#c0392b', false, false, Math.PI); else drawTank(en.x, en.y);
+            if (en.type === 'TANK' && !player.destroyed) {
+                // Moving forward (top to bottom)
+                en.y += en.speed;
+                // Lateral homing
+                const targetX = player.x + player.w / 2 - en.w / 2;
+                if (en.x < targetX) en.x += 0.5;
+                else if (en.x > targetX) en.x -= 0.5;
+                
+                // Keep angle at 0 for "forward" orientation
+                en.angle = 0;
+            } else {
+                en.y += en.speed;
+            }
+
+            if (en.type === 'HELI') drawEliteHeli(en.x, en.y, '#c0392b', false, false, Math.PI); 
+            else drawDetailedTank(en);
+
             if (!player.destroyed && Math.abs(player.x - en.x) < 35 && Math.abs(player.y - en.y) < 35) {
                 triggerPlayerDeath();
             }
+
             player.rockets.forEach((r, ri) => {
                 const rw = r.type === 'heavy' ? 16 : 4; const rh = r.type === 'heavy' ? 32 : 12;
                 if(r.x < en.x + en.w && r.x + rw > en.x && r.y < en.y + en.h && r.y + rh > en.y) {
                     if ((en.type === 'HELI') || (en.type === 'TANK' && r.type === 'heavy')) { 
                         enemies.splice(i, 1); player.rockets.splice(ri, 1); 
-                        score += en.type === 'TANK' ? 200 : 100; 
-                        createPixelCollapse(en.x + en.w/2, en.y + en.h/2, 30); 
-                    }
-                    else if (en.type === 'TANK' && r.type === 'light') { 
+                        score += en.type === 'TANK' ? 250 : 100; 
+                        createPixelCollapse(en.x + en.w/2, en.y + en.h/2, 40); 
+                    } else { 
                         player.rockets.splice(ri, 1); 
                         particles.push({x: r.x, y: r.y, vx: 2, vy: 2, life: 5, color: '#777'}); 
                     }
                 }
             });
-            if(en.y > canvas.height) enemies.splice(i, 1);
+            if(en.y > canvas.height + 100 || en.y < -200) enemies.splice(i, 1);
         });
 
-        // Particles
         particles.forEach((p, i) => {
             p.vx += (p.gravity || 0); p.x += p.vx; p.y += p.vy; p.life--;
             ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size || 4, p.size || 4);
@@ -610,11 +653,7 @@
         player.destroyed = true;
         player.hp = 0;
         createPixelCollapse(player.x + player.w/2, player.y + player.h/2, 400);
-        
-        // Multi-stage explosion
         setTimeout(() => createPixelCollapse(player.x + player.w/2, player.y + player.h/2, 200), 200);
-        setTimeout(() => createPixelCollapse(player.x + player.w/2, player.y + player.h/2, 100), 400);
-
         setTimeout(() => {
             gameActive = false;
             gameOverScreen.style.display = 'flex';
